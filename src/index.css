@@ -1,0 +1,24 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: #0e0e0f;
+  color: #f6f6f6;
+  font-family: 'Segoe UI', Tahoma, sans-serif;
+}
+
+#root {
+  max-width: 1200px;
+  min-height: 100vh;
+  margin: 0 auto;
+  border-left: 1px solid #282828;
+  border-right: 1px solid #282828;
+  background: #121212;
+}
+
+h2,
+h3 {
+  margin: 0;
+}
