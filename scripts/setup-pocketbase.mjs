@@ -61,6 +61,7 @@ function relationField(name, collectionId, required = false, maxSelect = 1) {
     name,
     type: 'relation',
     required,
+    collectionId,
     options: {
       collectionId,
       cascadeDelete: false,
@@ -114,10 +115,32 @@ async function loadCollections(token) {
 async function ensureCollection(token, existingByName, config) {
   const existing = existingByName.get(config.name)
   if (!existing) {
-    const created = await api(token, '/api/collections', {
-      method: 'POST',
-      body: JSON.stringify(config),
-    })
+    let created
+    try {
+      created = await api(token, '/api/collections', {
+        method: 'POST',
+        body: JSON.stringify(config),
+      })
+    } catch (error) {
+      // Some PocketBase versions accept relation.collectionId only in options.
+      // Retry with top-level collectionId removed from relation fields.
+      const fallbackConfig = {
+        ...config,
+        fields: (config.fields || []).map((field) => {
+          if (field.type !== 'relation') return field
+          const copy = { ...field }
+          delete copy.collectionId
+          return copy
+        }),
+      }
+      created = await api(token, '/api/collections', {
+        method: 'POST',
+        body: JSON.stringify(fallbackConfig),
+      })
+      console.warn(
+        `Create fallback used for ${config.name}: ${error instanceof Error ? error.message : String(error)}`,
+      )
+    }
     console.log(`Created collection: ${config.name}`)
     return created
   }
