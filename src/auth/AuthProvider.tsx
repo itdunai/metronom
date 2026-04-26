@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react'
 import type { PropsWithChildren } from 'react'
+import { ClientResponseError } from 'pocketbase'
 import { pb } from '../lib/pocketbase'
 
 type AuthContextValue = {
@@ -13,6 +14,28 @@ type AuthContextValue = {
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined)
+
+function formatPocketBaseError(error: unknown, fallback: string): string {
+  if (error instanceof ClientResponseError) {
+    const mainMessage = error.response?.message || error.message || fallback
+    const data = error.response?.data
+    if (!data || typeof data !== 'object') return mainMessage
+
+    const fieldMessages = Object.entries(data)
+      .map(([field, details]) => {
+        if (!details || typeof details !== 'object') return null
+        const message = (details as { message?: string }).message
+        return message ? `${field}: ${message}` : null
+      })
+      .filter((item): item is string => Boolean(item))
+
+    if (fieldMessages.length === 0) return mainMessage
+    return `${mainMessage} (${fieldMessages.join('; ')})`
+  }
+
+  if (error instanceof Error) return error.message
+  return fallback
+}
 
 export function AuthProvider({ children }: PropsWithChildren) {
   const [session, setSession] = useState<unknown | null>(null)
@@ -46,7 +69,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
           await pb.collection('users').authWithPassword(email, password)
           return { error: null }
         } catch (error) {
-          return { error: error instanceof Error ? error.message : 'Ошибка входа' }
+          return { error: formatPocketBaseError(error, 'Ошибка входа') }
         }
       },
       signUp: async (email, password) => {
@@ -59,7 +82,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
           await pb.collection('users').authWithPassword(email, password)
           return { error: null }
         } catch (error) {
-          return { error: error instanceof Error ? error.message : 'Ошибка регистрации' }
+          return { error: formatPocketBaseError(error, 'Ошибка регистрации') }
         }
       },
       signOut: async () => {
