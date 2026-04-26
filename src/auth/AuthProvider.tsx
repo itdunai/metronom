@@ -37,6 +37,16 @@ function formatPocketBaseError(error: unknown, fallback: string): string {
   return fallback
 }
 
+function buildUsernameFromEmail(email: string): string {
+  const [localPart] = email.split('@')
+  const normalized = (localPart || 'user')
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]/g, '')
+    .replace(/^[._-]+|[._-]+$/g, '')
+  const base = normalized || 'user'
+  return `${base}_${Date.now().toString(36)}`
+}
+
 export function AuthProvider({ children }: PropsWithChildren) {
   const [session, setSession] = useState<unknown | null>(null)
   const [userId, setUserId] = useState<string | null>(null)
@@ -73,9 +83,11 @@ export function AuthProvider({ children }: PropsWithChildren) {
         }
       },
       signUp: async (email, password) => {
+        const username = buildUsernameFromEmail(email)
         try {
           await pb.collection('users').create({
             email,
+            username,
             password,
             passwordConfirm: password,
           })
